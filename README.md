@@ -80,7 +80,7 @@ Focused on embedded systems, aerospace control, and experimental rocketry
 
 ## 💬 Contact
 
-- 📧 [24adityasolanki24@gmail.com]
-- 🌐 [www.linkedin.com/in/aditya-solanki-6174a4289]
+- 📧 24adityasolanki24@gmail.com
+- 🌐 www.linkedin.com/in/aditya-solanki-6174a4289
 
 
