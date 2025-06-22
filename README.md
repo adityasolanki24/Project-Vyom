@@ -56,7 +56,7 @@
 
 | Milestone                    | Status        |
 |-----------------------------|---------------|
-| Complete solid motor design | ✅ Done        |
+| Complete solid motor design | ✅ Done(Outsource)        |
 | Avionics v1 flight tested   | 🔄 |
 | TVC control tested on rig   | 🔄  |
 | First guided flight         | ⏳   |
