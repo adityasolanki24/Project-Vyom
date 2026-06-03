@@ -8,9 +8,13 @@ import json
 import time
 import math
 import random
-import serial
 import argparse
 from datetime import datetime
+
+try:
+    import serial
+except ImportError:
+    serial = None
 
 class TelemetrySimulator:
     """Simulates rocket telemetry data"""
@@ -54,6 +58,9 @@ class TelemetrySimulator:
     def connect_serial(self):
         """Connect to serial port for output"""
         if self.port:
+            if serial is None:
+                print("pyserial is not installed; continuing without serial output")
+                return False
             try:
                 self.serial_connection = serial.Serial(self.port, self.baud, timeout=1)
                 print(f"Connected to {self.port} at {self.baud} baud")

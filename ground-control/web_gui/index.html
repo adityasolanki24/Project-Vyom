@@ -1,1387 +1,162 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Vyom - Ground Control Station</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #0a0a0a;
-            color: #ffffff;
-            overflow-x: hidden;
-            min-height: 100vh;
-            line-height: 1.6;
-        }
-
-        /* Minimalist animations */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
-        .header {
-            background: rgba(0, 0, 0, 0.9);
-            padding: 2rem 3rem;
-            border-bottom: 1px solid #333333;
-            position: relative;
-        }
-
-        .header h1 {
-            font-size: 2rem;
-            font-weight: 300;
-            margin-bottom: 0.5rem;
-            color: #ffffff;
-            letter-spacing: -0.5px;
-        }
-
-        .header .subtitle {
-            color: #888888;
-            font-size: 0.9rem;
-            font-weight: 400;
-        }
-
-        .mission-status {
-            display: flex;
-            gap: 2rem;
-            align-items: center;
-            margin-top: 1rem;
-        }
-
-        .status-badge {
-            background: #333333;
-            color: #ffffff;
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .status-badge.armed {
-            background: #ff6b35;
-            animation: pulse 1s infinite;
-        }
-
-        .status-badge.launch {
-            background: #ff4444;
-            animation: pulse 0.5s infinite;
-        }
-
-        .countdown {
-            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: #00d4aa;
-        }
-
-        .countdown.launch {
-            color: #ff4444;
-            animation: pulse 0.5s infinite;
-        }
-
-        .mission-controls {
-            display: flex;
-            gap: 1rem;
-            margin-left: 2rem;
-        }
-
-        .mission-controls button {
-            padding: 0.8rem 1.5rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-size: 0.9rem;
-        }
-
-        .mission-controls button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            background: #333333;
-            color: #666666;
-        }
-
-        #armBtn {
-            background: #ff6b35;
-            color: #ffffff;
-            border-color: #ff6b35;
-        }
-
-        #launchBtn {
-            background: #ff4444;
-            color: #ffffff;
-            border-color: #ff4444;
-        }
-
-        #abortBtn {
-            background: #333333;
-            color: #ffffff;
-            border-color: #333333;
-        }
-
-        #abortBtn:enabled {
-            background: #ff4444;
-            border-color: #ff4444;
-        }
-
-        .control-panel {
-            background: rgba(0, 0, 0, 0.95);
-            padding: 1.5rem 3rem;
-            display: flex;
-            gap: 2rem;
-            align-items: center;
-            flex-wrap: wrap;
-            border-bottom: 1px solid #333333;
-        }
-
-        .control-group {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .control-group label {
-            font-weight: 500;
-            font-size: 0.85rem;
-            color: #cccccc;
-            min-width: 50px;
-        }
-
-        select, input, button {
-            padding: 0.6rem 1rem;
-            border: 1px solid #333333;
-            border-radius: 4px;
-            background: #1a1a1a;
-            color: #ffffff;
-            font-size: 0.85rem;
-            font-family: inherit;
-            transition: all 0.2s ease;
-        }
-
-        select:focus, input:focus {
-            outline: none;
-            border-color: #ffffff;
-            background: #222222;
-        }
-
-        button {
-            cursor: pointer;
-            font-weight: 500;
-            background: #ffffff;
-            color: #000000;
-            border: 1px solid #ffffff;
-        }
-
-        button:hover {
-            background: #f0f0f0;
-            transform: translateY(-1px);
-        }
-
-        button.connected {
-            background: #00d4aa;
-            color: #000000;
-            border-color: #00d4aa;
-        }
-
-        button.logging {
-            background: #ff6b35;
-            color: #ffffff;
-            border-color: #ff6b35;
-        }
-
-        .status-indicators {
-            display: flex;
-            gap: 2rem;
-            margin-left: auto;
-            align-items: center;
-        }
-
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.85rem;
-            color: #cccccc;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #666666;
-        }
-
-        .status-dot.connected {
-            background: #00d4aa;
-            animation: pulse 2s infinite;
-        }
-
-        .main-content {
-            display: grid;
-            grid-template-columns: 280px 1fr;
-            gap: 0;
-            height: calc(100vh - 200px);
-            overflow: hidden;
-        }
-
-        .main-content {
-            display: grid;
-            grid-template-columns: 350px 1fr;
-            gap: 0;
-            height: calc(100vh - 200px);
-            overflow: hidden;
-        }
-
-        .left-panel {
-            background: #111111;
-            border-right: 1px solid #333333;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .control-panels {
-            padding: 1rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .control-panel-section {
-            background: #0a0a0a;
-            border: 1px solid #333333;
-            border-radius: 4px;
-            padding: 1rem;
-        }
-
-        .control-panel-section h3 {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #ffffff;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 1rem;
-            border-bottom: 1px solid #333333;
-            padding-bottom: 0.5rem;
-        }
-
-        .control-buttons {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.5rem;
-        }
-
-        .control-buttons button {
-            padding: 0.6rem;
-            font-size: 0.8rem;
-            background: #333333;
-            color: #ffffff;
-            border: 1px solid #333333;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .control-buttons button:hover {
-            background: #444444;
-            border-color: #00d4aa;
-        }
-
-        .mission-inputs {
-            display: flex;
-            flex-direction: column;
-            gap: 0.8rem;
-        }
-
-        .input-group {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .input-group label {
-            font-size: 0.8rem;
-            color: #cccccc;
-            min-width: 80px;
-        }
-
-        .input-group input {
-            flex: 1;
-            padding: 0.4rem;
-            font-size: 0.8rem;
-        }
-
-        .input-group span {
-            font-size: 0.8rem;
-            color: #888888;
-            min-width: 20px;
-        }
-
-        .status-panel h3 {
-            font-size: 1rem;
-            font-weight: 600;
-            margin-bottom: 2rem;
-            color: #ffffff;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .status-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 1.5rem;
-        }
-
-        .status-item {
-            padding: 1rem 0;
-            border-bottom: 1px solid #222222;
-        }
-
-        .status-item:last-child {
-            border-bottom: none;
-        }
-
-        .status-item .label {
-            font-size: 0.75rem;
-            color: #888888;
-            margin-bottom: 0.5rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: 500;
-        }
-
-        .status-item .value {
-            font-size: 1.5rem;
-            font-weight: 300;
-            color: #ffffff;
-            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-        }
-
-        .status-item .unit {
-            font-size: 0.9rem;
-            color: #888888;
-            margin-left: 0.5rem;
-            font-weight: 400;
-        }
-
-        .charts-container {
-            display: flex;
-            flex-direction: column;
-            background: #0a0a0a;
-            height: 100%;
-            overflow: hidden;
-        }
-
-        .charts-controls {
-            background: #111111;
-            padding: 1.5rem 2rem;
-            border-bottom: 1px solid #333333;
-            display: flex;
-            gap: 2rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .charts-controls h3 {
-            font-size: 1rem;
-            font-weight: 600;
-            color: #ffffff;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-right: 1rem;
-        }
-
-        .chart-selector {
-            display: flex;
-            gap: 0.75rem;
-            align-items: center;
-        }
-
-        .chart-selector label {
-            font-size: 0.85rem;
-            color: #cccccc;
-            font-weight: 500;
-        }
-
-        .charts-grid {
-            flex: 1;
-            display: grid;
-            gap: 1px;
-            overflow: hidden;
-            height: 100%;
-            background: #333333;
-        }
-
-        .charts-grid.grid-1 { 
-            grid-template-columns: 1fr; 
-            grid-template-rows: 1fr; 
-        }
-        .charts-grid.grid-2 { 
-            grid-template-columns: 1fr 1fr; 
-            grid-template-rows: 1fr; 
-        }
-        .charts-grid.grid-3 { 
-            grid-template-columns: 1fr 1fr; 
-            grid-template-rows: 1fr 1fr; 
-        }
-        .charts-grid.grid-4 { 
-            grid-template-columns: 1fr 1fr; 
-            grid-template-rows: 1fr 1fr; 
-        }
-        .charts-grid.grid-6 { 
-            grid-template-columns: 1fr 1fr 1fr; 
-            grid-template-rows: 1fr 1fr; 
-        }
-
-        .chart-container {
-            background: #0a0a0a;
-            padding: 1rem;
-            position: relative;
-            overflow: hidden;
-            height: 100%;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            box-sizing: border-box;
-        }
-
-        .chart-title {
-            font-size: 0.9rem;
-            font-weight: 500;
-            margin-bottom: 1rem;
-            color: #ffffff;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            flex-shrink: 0;
-        }
-
-        .chart-container canvas {
-            flex: 1;
-            height: 0;
-            width: 100%;
-            min-height: 200px;
-        }
-
-        .timeline-panel {
-            background: #111111;
-            border-top: 1px solid #333333;
-            padding: 1.5rem 2rem;
-            height: 200px;
-            overflow: hidden;
-        }
-
-        .timeline-panel h3 {
-            font-size: 1rem;
-            font-weight: 600;
-            margin-bottom: 1.5rem;
-            color: #ffffff;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .timeline-content {
-            height: calc(100% - 3rem);
-            overflow-y: auto;
-            background: #0a0a0a;
-            border-radius: 4px;
-            padding: 1rem;
-        }
-
-        .timeline-item {
-            padding: 0.5rem 0;
-            border-bottom: 1px solid #222222;
-            font-size: 0.8rem;
-            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-        }
-
-        .timeline-item:last-child {
-            border-bottom: none;
-        }
-
-        .timeline-time {
-            color: #00d4aa;
-            font-weight: 500;
-        }
-
-        /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #111111;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #333333;
-            border-radius: 3px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555555;
-        }
-
-        @media (max-width: 1200px) {
-            .main-content {
-                grid-template-columns: 1fr;
-                grid-template-rows: auto 1fr;
-            }
-            
-            .charts-grid {
-                grid-template-columns: 1fr !important;
-                grid-template-rows: repeat(auto-fit, minmax(300px, 1fr)) !important;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .control-panel {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 1rem;
-            }
-            
-            .status-indicators {
-                margin-left: 0;
-                justify-content: center;
-            }
-            
-            .charts-controls {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 1rem;
-            }
-        }
-    </style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Project Vyom Ground Control</title>
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <div class="header">
-        <h1>Project Vyom</h1>
-        <div class="subtitle">Mission Control Interface</div>
-        <div class="mission-status">
-            <span class="status-badge" id="missionStatus">STANDBY</span>
-            <span class="countdown" id="countdown">T-00:00:00</span>
-        </div>
+    <div class="app-shell">
+        <header class="command-bar" aria-label="Mission command bar">
+            <div class="mission-title">
+                <span>Project Vyom</span>
+                <strong>Ground Control</strong>
+            </div>
+
+            <div class="bar-readouts" role="list" aria-label="Link and mission status">
+                <div class="bar-chip" role="listitem">
+                    <span>Vehicle</span>
+                    <strong>VYOM-TVC-01</strong>
+                </div>
+                <div class="bar-chip clock-chip" role="listitem">
+                    <span>Mission Time</span>
+                    <strong id="mission-clock">T+ --:--</strong>
+                </div>
+                <div class="bar-chip" role="listitem">
+                    <span>Link</span>
+                    <strong id="link-status" class="status-text status-los">LOS</strong>
+                </div>
+                <div class="bar-chip" role="listitem">
+                    <span>Rate</span>
+                    <strong id="telemetry-rate">0.0 Hz</strong>
+                </div>
+                <div class="bar-chip" role="listitem">
+                    <span>Packets</span>
+                    <strong id="packet-count">0</strong>
+                </div>
+                <div class="bar-chip" role="listitem">
+                    <span>Mode</span>
+                    <strong id="arm-state" class="status-text status-safe">SAFE</strong>
+                </div>
+            </div>
+        </header>
+
+        <section id="master-banner" class="master-banner" aria-live="assertive" hidden>
+            <strong id="master-title">MASTER CAUTION</strong>
+            <span id="master-message">Telemetry threshold exceeded</span>
+        </section>
+
+        <nav id="phase-timeline" class="phase-timeline" aria-label="Mission phase timeline"></nav>
+
+        <main class="console-grid">
+            <section class="panel panel-wide flight-panel" aria-labelledby="flight-display-title">
+                <div class="panel-header">
+                    <div>
+                        <span>Primary Flight Display</span>
+                        <h1 id="flight-display-title">Flight Dynamics</h1>
+                    </div>
+                    <div class="panel-meta" id="last-good-age">Last good: --</div>
+                </div>
+                <div class="chart-stack">
+                    <canvas id="altitude-chart" class="chart-canvas" aria-label="Altitude over time"></canvas>
+                    <div class="chart-row">
+                        <canvas id="velocity-chart" class="chart-canvas" aria-label="Velocity over time"></canvas>
+                        <canvas id="acceleration-chart" class="chart-canvas" aria-label="Acceleration over time"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel attitude-panel" aria-labelledby="attitude-title">
+                <div class="panel-header">
+                    <div>
+                        <span>Attitude</span>
+                        <h2 id="attitude-title">Guidance View</h2>
+                    </div>
+                    <div class="panel-meta" id="phase-readout">PRE-LAUNCH</div>
+                </div>
+                <div class="attitude-grid">
+                    <canvas id="attitude-canvas" class="attitude-canvas" aria-label="Artificial horizon"></canvas>
+                    <div class="axis-readouts">
+                        <div><span>Roll</span><strong id="roll-value">--</strong></div>
+                        <div><span>Pitch</span><strong id="pitch-value">--</strong></div>
+                        <div><span>Yaw</span><strong id="yaw-value">--</strong></div>
+                    </div>
+                    <canvas id="tvc-canvas" class="tvc-canvas" aria-label="TVC gimbal angle"></canvas>
+                    <div class="axis-readouts compact">
+                        <div><span>TVC ACT</span><strong id="tvc-actual">--</strong></div>
+                        <div><span>TVC CMD</span><strong id="tvc-commanded">--</strong></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel ground-panel" aria-labelledby="ground-title">
+                <div class="panel-header">
+                    <div>
+                        <span>Recovery</span>
+                        <h2 id="ground-title">Ground Track</h2>
+                    </div>
+                    <div class="panel-meta" id="gps-state">GPS --</div>
+                </div>
+                <canvas id="ground-track" class="ground-canvas" aria-label="Offline ground track plot"></canvas>
+                <div class="ground-readout">
+                    <span id="latitude-value">Lat --</span>
+                    <span id="longitude-value">Lon --</span>
+                </div>
+            </section>
+
+            <section class="panel telemetry-panel" aria-labelledby="telemetry-title">
+                <div class="panel-header">
+                    <div>
+                        <span>Live Telemetry</span>
+                        <h2 id="telemetry-title">Current Values</h2>
+                    </div>
+                </div>
+                <div class="telemetry-strip" id="telemetry-strip"></div>
+            </section>
+
+            <section class="panel health-panel" aria-labelledby="health-title">
+                <div class="panel-header">
+                    <div>
+                        <span>Vehicle Health</span>
+                        <h2 id="health-title">Power / Environment</h2>
+                    </div>
+                    <div class="panel-meta" id="health-summary">NOMINAL</div>
+                </div>
+                <div class="health-grid" id="health-grid"></div>
+            </section>
+
+            <section class="panel ops-panel" aria-labelledby="ops-title">
+                <div class="panel-header">
+                    <div>
+                        <span>Operations</span>
+                        <h2 id="ops-title">Controls</h2>
+                    </div>
+                </div>
+                <div class="control-grid">
+                    <button id="arm-button" type="button" class="command-button danger">ARM</button>
+                    <button id="safe-button" type="button" class="command-button">SAFE</button>
+                    <button id="start-sim-button" type="button" class="command-button primary">Start Simulation</button>
+                    <button id="stop-sim-button" type="button" class="command-button">Stop Simulation</button>
+                    <button id="start-log-button" type="button" class="command-button primary">Start Logging</button>
+                    <button id="stop-log-button" type="button" class="command-button">Stop Logging</button>
+                    <button id="report-button" type="button" class="command-button wide">Generate Report</button>
+                </div>
+            </section>
+
+            <section class="panel event-panel" aria-labelledby="event-title">
+                <div class="panel-header">
+                    <div>
+                        <span>Events / Alarms</span>
+                        <h2 id="event-title">Mission Log</h2>
+                    </div>
+                    <button id="clear-events-button" type="button" class="text-button">Clear</button>
+                </div>
+                <ol id="event-log" class="event-log" aria-live="polite"></ol>
+            </section>
+        </main>
     </div>
 
-    <div class="control-panel">
-        <div class="control-group">
-            <label>Mission:</label>
-            <select id="missionSelect">
-                <option value="test">Test Flight</option>
-                <option value="suborbital">Suborbital Flight</option>
-                <option value="orbital">Orbital Flight</option>
-                <option value="custom">Custom Mission</option>
-            </select>
-        </div>
-        <div class="control-group">
-            <label>Port:</label>
-            <select id="portSelect">
-                <option value="COM3">COM3</option>
-                <option value="COM4">COM4</option>
-                <option value="COM5">COM5</option>
-                <option value="COM6">COM6</option>
-            </select>
-        </div>
-        <div class="control-group">
-            <label>Baud:</label>
-            <select id="baudSelect">
-                <option value="9600">9600</option>
-                <option value="19200">19200</option>
-                <option value="38400">38400</option>
-                <option value="57600">57600</option>
-                <option value="115200" selected>115200</option>
-            </select>
-        </div>
-        
-        <div class="mission-controls">
-            <button id="armBtn" onclick="armRocket()" disabled>ARM ROCKET</button>
-            <button id="launchBtn" onclick="launchRocket()" disabled>LAUNCH</button>
-            <button id="abortBtn" onclick="abortMission()" disabled>ABORT</button>
-            <button id="connectBtn" onclick="toggleConnection()">CONNECT</button>
-        </div>
-        
-        <div class="status-indicators">
-            <div class="status-indicator">
-                <div class="status-dot" id="connectionDot"></div>
-                <span id="connectionStatus">Disconnected</span>
-            </div>
-            <div class="status-indicator">
-                <div class="status-dot" id="armDot"></div>
-                <span id="armStatus">Disarmed</span>
-            </div>
-            <div class="status-indicator">
-                <span>Data Points: <span id="dataCount">0</span></span>
-            </div>
-        </div>
-    </div>
-
-    <div class="main-content">
-        <div class="left-panel">
-            <div class="status-panel">
-                <h3>Flight Status</h3>
-                <div class="status-grid">
-                    <div class="status-item">
-                        <div class="label">Current Time</div>
-                        <div class="value" id="currentTime">--:--:--</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="label">Altitude</div>
-                        <div class="value" id="altitude">0.0<span class="unit">m</span></div>
-                    </div>
-                    <div class="status-item">
-                        <div class="label">Velocity</div>
-                        <div class="value" id="velocity">0.0<span class="unit">m/s</span></div>
-                    </div>
-                    <div class="status-item">
-                        <div class="label">Acceleration</div>
-                        <div class="value" id="acceleration">0.0<span class="unit">m/s²</span></div>
-                    </div>
-                    <div class="status-item">
-                        <div class="label">GPS Fix</div>
-                        <div class="value" id="gpsFix">No Fix</div>
-                    </div>
-                    <div class="status-item">
-                        <div class="label">Battery</div>
-                        <div class="value" id="battery">0.0<span class="unit">V</span></div>
-                    </div>
-                    <div class="status-item">
-                        <div class="label">Temperature</div>
-                        <div class="value" id="temperature">0.0<span class="unit">°C</span></div>
-                    </div>
-                    <div class="status-item">
-                        <div class="label">Pressure</div>
-                        <div class="value" id="pressure">0.0<span class="unit">Pa</span></div>
-                    </div>
-                    <div class="status-item">
-                        <div class="label">Roll</div>
-                        <div class="value" id="roll">0.0<span class="unit">°</span></div>
-                    </div>
-                    <div class="status-item">
-                        <div class="label">Pitch</div>
-                        <div class="value" id="pitch">0.0<span class="unit">°</span></div>
-                    </div>
-                    <div class="status-item">
-                        <div class="label">Yaw</div>
-                        <div class="value" id="yaw">0.0<span class="unit">°</span></div>
-                    </div>
-                    <div class="status-item">
-                        <div class="label">TVC Angle</div>
-                        <div class="value" id="tvcAngle">0.0<span class="unit">°</span></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="control-panels">
-                <div class="control-panel-section">
-                    <h3>Mission Control</h3>
-                    <div class="control-buttons">
-                        <button onclick="startLogging()">Start Logging</button>
-                        <button onclick="stopLogging()">Stop Logging</button>
-                        <button onclick="generateReport()">Generate Report</button>
-                        <button onclick="emergencyStop()">Emergency Stop</button>
-                    </div>
-                </div>
-
-                <div class="control-panel-section">
-                    <h3>Flight Commands</h3>
-                    <div class="control-buttons">
-                        <button onclick="sendCommand('TVC_ADJUST', 5)">TVC +5°</button>
-                        <button onclick="sendCommand('TVC_ADJUST', -5)">TVC -5°</button>
-                        <button onclick="sendCommand('THROTTLE', 100)">Full Throttle</button>
-                        <button onclick="sendCommand('THROTTLE', 0)">Cut Throttle</button>
-                    </div>
-                </div>
-
-                <div class="control-panel-section">
-                    <h3>Mission Planning</h3>
-                    <div class="mission-inputs">
-                        <div class="input-group">
-                            <label>Target Altitude:</label>
-                            <input type="number" id="targetAlt" value="1000" min="0" max="10000">
-                            <span>m</span>
-                        </div>
-                        <div class="input-group">
-                            <label>Launch Angle:</label>
-                            <input type="number" id="launchAngle" value="85" min="0" max="90">
-                            <span>°</span>
-                        </div>
-                        <div class="input-group">
-                            <label>Burn Time:</label>
-                            <input type="number" id="burnTime" value="30" min="1" max="300">
-                            <span>s</span>
-                        </div>
-                        <button onclick="updateMissionProfile()">Update Profile</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="charts-container">
-            <div class="charts-controls">
-                <h3>Telemetry Display</h3>
-                <div class="chart-selector">
-                    <label>Charts:</label>
-                    <select id="chartCount" onchange="updateChartLayout()">
-                        <option value="1">1 Chart</option>
-                        <option value="2">2 Charts</option>
-                        <option value="3">3 Charts</option>
-                        <option value="4" selected>4 Charts</option>
-                        <option value="6">6 Charts</option>
-                    </select>
-                </div>
-                <button onclick="addCustomChart()">Add Custom Chart</button>
-                <button onclick="resetCharts()">Reset Charts</button>
-            </div>
-            
-            <div class="charts-grid grid-4" id="chartsGrid">
-                <!-- Charts will be dynamically generated -->
-            </div>
-        </div>
-    </div>
-
-    <div class="timeline-panel">
-        <h3>Mission Timeline</h3>
-        <div class="timeline-content" id="timelineContent">
-            <div class="timeline-item">
-                <span class="timeline-time">[--:--:--]</span> Ground Control Station initialized
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // Global variables
-        let isConnected = false;
-        let isLogging = false;
-        let websocket = null;
-        let charts = {};
-        let telemetryData = [];
-        let simulationInterval = null;
-        let serverConnected = false;
-        let chartConfigs = [];
-        let chartCounter = 0;
-
-        // Available telemetry variables
-        const telemetryVariables = {
-            'time': { label: 'Time', unit: 's', color: '#ffffff' },
-            'altitude': { label: 'Altitude', unit: 'm', color: '#00d4aa' },
-            'velocity': { label: 'Velocity', unit: 'm/s', color: '#ff6b35' },
-            'acceleration': { label: 'Acceleration', unit: 'm/s²', color: '#ff4444' },
-            'latitude': { label: 'Latitude', unit: '°', color: '#4CAF50' },
-            'longitude': { label: 'Longitude', unit: '°', color: '#2196F3' },
-            'roll': { label: 'Roll', unit: '°', color: '#f44336' },
-            'pitch': { label: 'Pitch', unit: '°', color: '#4CAF50' },
-            'yaw': { label: 'Yaw', unit: '°', color: '#2196F3' },
-            'temperature': { label: 'Temperature', unit: '°C', color: '#ff9800' },
-            'pressure': { label: 'Pressure', unit: 'Pa', color: '#9c27b0' },
-            'battery_voltage': { label: 'Battery', unit: 'V', color: '#00bcd4' },
-            'tvc_angle': { label: 'TVC Angle', unit: '°', color: '#795548' }
-        };
-
-        // Default chart configurations
-        const defaultCharts = [
-            {
-                id: 'altitude',
-                title: 'Altitude vs Time',
-                xAxis: 'time',
-                yAxis: ['altitude'],
-                type: 'line',
-                showTheoretical: true
-            },
-            {
-                id: 'velocity',
-                title: 'Velocity vs Time',
-                xAxis: 'time',
-                yAxis: ['velocity'],
-                type: 'line'
-            },
-            {
-                id: 'groundTrack',
-                title: 'Ground Track',
-                xAxis: 'longitude',
-                yAxis: ['latitude'],
-                type: 'scatter'
-            },
-            {
-                id: 'attitude',
-                title: 'Attitude',
-                xAxis: 'time',
-                yAxis: ['roll', 'pitch', 'yaw'],
-                type: 'line'
-            }
-        ];
-
-        // Initialize charts
-        function initializeCharts() {
-            chartConfigs = [...defaultCharts];
-            updateChartLayout();
-        }
-
-        // Update chart layout based on selected count
-        function updateChartLayout() {
-            const count = parseInt(document.getElementById('chartCount').value);
-            const chartsGrid = document.getElementById('chartsGrid');
-            
-            // Update grid class
-            chartsGrid.className = `charts-grid grid-${count}`;
-            
-            // Clear existing charts
-            chartsGrid.innerHTML = '';
-            charts = {};
-            
-            // Create charts based on count
-            for (let i = 0; i < count && i < chartConfigs.length; i++) {
-                createChartElement(chartConfigs[i]);
-            }
-        }
-
-        // Create a chart element
-        function createChartElement(config) {
-            const chartsGrid = document.getElementById('chartsGrid');
-            
-            const chartContainer = document.createElement('div');
-            chartContainer.className = 'chart-container';
-            chartContainer.id = `chart-${config.id}`;
-            
-            const chartTitle = document.createElement('div');
-            chartTitle.className = 'chart-title';
-            chartTitle.textContent = config.title;
-            
-            const canvas = document.createElement('canvas');
-            canvas.id = `${config.id}Chart`;
-            
-            chartContainer.appendChild(chartTitle);
-            chartContainer.appendChild(canvas);
-            chartsGrid.appendChild(chartContainer);
-            
-            // Create Chart.js instance
-            charts[config.id] = new Chart(canvas, createChartConfig(config));
-        }
-
-        // Create Chart.js configuration
-        function createChartConfig(config) {
-            const datasets = [];
-            
-            // Create datasets for each Y-axis variable
-            config.yAxis.forEach((variable, index) => {
-                const varInfo = telemetryVariables[variable];
-                datasets.push({
-                    label: varInfo.label,
-                    data: [],
-                    borderColor: varInfo.color,
-                    backgroundColor: varInfo.color + '20',
-                    tension: 0.4,
-                    fill: config.type === 'line' && index === 0
-                });
-            });
-            
-            // Add theoretical data if needed
-            if (config.showTheoretical && config.yAxis.includes('altitude')) {
-                datasets.push({
-                    label: 'Theoretical Altitude',
-                    data: [],
-                    borderColor: '#ff9800',
-                    backgroundColor: 'rgba(255, 152, 0, 0.1)',
-                    borderDash: [5, 5],
-                    tension: 0.4
-                });
-            }
-            
-            return {
-                type: config.type,
-                data: {
-                    labels: [],
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            type: config.xAxis === 'time' ? 'linear' : 'linear',
-                            title: {
-                                display: true,
-                                text: telemetryVariables[config.xAxis].label + ' (' + telemetryVariables[config.xAxis].unit + ')',
-                                color: '#cccccc'
-                            },
-                            ticks: { color: '#cccccc' },
-                            grid: { color: '#333333' }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: config.yAxis.length === 1 ? 
-                                    telemetryVariables[config.yAxis[0]].label + ' (' + telemetryVariables[config.yAxis[0]].unit + ')' :
-                                    'Values',
-                                color: '#cccccc'
-                            },
-                            ticks: { color: '#cccccc' },
-                            grid: { color: '#333333' }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            labels: { color: '#cccccc' }
-                        }
-                    }
-                }
-            };
-        }
-
-        // Add custom chart
-        function addCustomChart() {
-            const title = prompt('Enter chart title:', 'Custom Chart');
-            if (!title) return;
-            
-            const xAxis = prompt('Enter X-axis variable (time, altitude, velocity, etc.):', 'time');
-            if (!telemetryVariables[xAxis]) {
-                alert('Invalid X-axis variable!');
-                return;
-            }
-            
-            const yAxisInput = prompt('Enter Y-axis variables (comma-separated):', 'altitude');
-            const yAxis = yAxisInput.split(',').map(v => v.trim()).filter(v => telemetryVariables[v]);
-            
-            if (yAxis.length === 0) {
-                alert('No valid Y-axis variables!');
-                return;
-            }
-            
-            const type = prompt('Chart type (line or scatter):', 'line');
-            if (!['line', 'scatter'].includes(type)) {
-                alert('Invalid chart type!');
-                return;
-            }
-            
-            const config = {
-                id: `custom_${chartCounter++}`,
-                title: title,
-                xAxis: xAxis,
-                yAxis: yAxis,
-                type: type
-            };
-            
-            chartConfigs.push(config);
-            createChartElement(config);
-            addTimelineEntry(`Custom chart added: ${title}`);
-        }
-
-        // Reset charts to defaults
-        function resetCharts() {
-            chartConfigs = [...defaultCharts];
-            updateChartLayout();
-            addTimelineEntry('Charts reset to defaults');
-        }
-
-        // Update status display
-        function updateStatus(data) {
-            document.getElementById('currentTime').textContent = new Date().toLocaleTimeString();
-            document.getElementById('altitude').innerHTML = `${data.altitude?.toFixed(1) || '0.0'}<span class="unit">m</span>`;
-            document.getElementById('velocity').innerHTML = `${data.velocity?.toFixed(1) || '0.0'}<span class="unit">m/s</span>`;
-            document.getElementById('acceleration').innerHTML = `${data.acceleration?.toFixed(1) || '0.0'}<span class="unit">m/s²</span>`;
-            document.getElementById('gpsFix').textContent = data.gps_fix ? 'GPS Fix' : 'No Fix';
-            document.getElementById('battery').innerHTML = `${data.battery_voltage?.toFixed(1) || '0.0'}<span class="unit">V</span>`;
-            document.getElementById('temperature').innerHTML = `${data.temperature?.toFixed(1) || '0.0'}<span class="unit">°C</span>`;
-            document.getElementById('pressure').innerHTML = `${data.pressure?.toFixed(0) || '0'}<span class="unit">Pa</span>`;
-            document.getElementById('roll').innerHTML = `${data.roll?.toFixed(1) || '0.0'}<span class="unit">°</span>`;
-            document.getElementById('pitch').innerHTML = `${data.pitch?.toFixed(1) || '0.0'}<span class="unit">°</span>`;
-            document.getElementById('yaw').innerHTML = `${data.yaw?.toFixed(1) || '0.0'}<span class="unit">°</span>`;
-            document.getElementById('tvcAngle').innerHTML = `${data.tvc_angle?.toFixed(1) || '0.0'}<span class="unit">°</span>`;
-        }
-
-        // Update charts
-        function updateCharts(data) {
-            const time = data.time || 0;
-            
-            // Update each chart based on its configuration
-            chartConfigs.forEach(config => {
-                if (!charts[config.id]) return;
-                
-                const chart = charts[config.id];
-                
-                // Update X-axis data
-                if (config.xAxis === 'time') {
-                    chart.data.labels.push(time);
-                } else {
-                    chart.data.labels.push(data[config.xAxis] || 0);
-                }
-                
-                // Update Y-axis data
-                config.yAxis.forEach((variable, index) => {
-                    if (chart.data.datasets[index]) {
-                        chart.data.datasets[index].data.push(data[variable] || 0);
-                    }
-                });
-                
-                // Update theoretical data if needed
-                if (config.showTheoretical && config.yAxis.includes('altitude')) {
-                    const theoreticalIndex = config.yAxis.length;
-                    if (chart.data.datasets[theoreticalIndex]) {
-                        chart.data.datasets[theoreticalIndex].data.push(calculateTheoreticalAltitude(time));
-                    }
-                }
-                
-                // Keep only last 100 points
-                if (chart.data.labels.length > 100) {
-                    chart.data.labels.shift();
-                    chart.data.datasets.forEach(dataset => {
-                        dataset.data.shift();
-                    });
-                }
-                
-                // Update chart
-                chart.update('none');
-            });
-        }
-
-        // Calculate theoretical altitude (simplified)
-        function calculateTheoreticalAltitude(time) {
-            if (time < 5) return 0;
-            if (time < 7) return Math.pow(time - 5, 2) * 10; // Boost phase
-            if (time < 12) return 40 + (time - 7) * 15; // Coast phase
-            return Math.max(0, 115 - Math.pow(time - 12, 2) * 2); // Descent
-        }
-
-        // Add timeline entry
-        function addTimelineEntry(message) {
-            const timelineContent = document.getElementById('timelineContent');
-            const timelineItem = document.createElement('div');
-            timelineItem.className = 'timeline-item';
-            timelineItem.innerHTML = `<span class="timeline-time">[${new Date().toLocaleTimeString()}]</span> ${message}`;
-            timelineContent.appendChild(timelineItem);
-            timelineContent.scrollTop = timelineContent.scrollHeight;
-        }
-
-        // WebSocket connection management
-        function connectWebSocket() {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${window.location.host}/ws`;
-            
-            websocket = new WebSocket(wsUrl);
-            
-            websocket.onopen = function() {
-                serverConnected = true;
-                document.getElementById('connectionDot').classList.add('connected');
-                document.getElementById('connectionStatus').textContent = 'Server Connected';
-                addTimelineEntry('Connected to ground control server');
-            };
-            
-            websocket.onmessage = function(event) {
-                const message = JSON.parse(event.data);
-                handleServerMessage(message);
-            };
-            
-            websocket.onclose = function() {
-                serverConnected = false;
-                document.getElementById('connectionDot').classList.remove('connected');
-                document.getElementById('connectionStatus').textContent = 'Server Disconnected';
-                addTimelineEntry('Disconnected from ground control server');
-                
-                // Attempt to reconnect after 3 seconds
-                setTimeout(connectWebSocket, 3000);
-            };
-            
-            websocket.onerror = function(error) {
-                console.error('WebSocket error:', error);
-                addTimelineEntry('WebSocket connection error');
-            };
-        }
-
-        // Handle server messages
-        function handleServerMessage(message) {
-            switch (message.type) {
-                case 'telemetry':
-                    telemetryData.push(message.data);
-                    updateStatus(message.data);
-                    updateCharts(message.data);
-                    document.getElementById('dataCount').textContent = telemetryData.length;
-                    break;
-                case 'status':
-                    addTimelineEntry(message.message);
-                    break;
-                case 'pong':
-                    // Server responded to ping
-                    break;
-            }
-        }
-
-        // Send message to server
-        function sendToServer(message) {
-            if (websocket && websocket.readyState === WebSocket.OPEN) {
-                websocket.send(JSON.stringify(message));
-            }
-        }
-
-        // Mission control variables
-        let missionState = 'STANDBY';
-        let isArmed = false;
-        let countdownInterval = null;
-        let countdownTime = 0;
-        let missionProfile = {
-            targetAltitude: 1000,
-            launchAngle: 85,
-            burnTime: 30
-        };
-
-        // Mission control functions
-        function armRocket() {
-            if (!isConnected) {
-                alert('Please connect to rocket first!');
-                return;
-            }
-            
-            if (confirm('ARM ROCKET? This will enable launch systems!')) {
-                isArmed = true;
-                missionState = 'ARMED';
-                
-                document.getElementById('armBtn').disabled = true;
-                document.getElementById('launchBtn').disabled = false;
-                document.getElementById('armDot').classList.add('connected');
-                document.getElementById('armStatus').textContent = 'Armed';
-                document.getElementById('missionStatus').textContent = 'ARMED';
-                document.getElementById('missionStatus').classList.add('armed');
-                
-                sendToServer({type: 'command', command: 'ARM'});
-                addTimelineEntry('ROCKET ARMED - Launch systems enabled');
-            }
-        }
-
-        function launchRocket() {
-            if (!isArmed) {
-                alert('Rocket must be armed first!');
-                return;
-            }
-            
-            if (confirm('LAUNCH ROCKET? This action cannot be undone!')) {
-                missionState = 'LAUNCH';
-                document.getElementById('launchBtn').disabled = true;
-                document.getElementById('abortBtn').disabled = false;
-                document.getElementById('missionStatus').textContent = 'LAUNCH';
-                document.getElementById('missionStatus').classList.add('launch');
-                document.getElementById('countdown').classList.add('launch');
-                
-                // Start countdown
-                countdownTime = 10;
-                countdownInterval = setInterval(() => {
-                    document.getElementById('countdown').textContent = `T-${countdownTime.toString().padStart(2, '0')}:00`;
-                    countdownTime--;
-                    
-                    if (countdownTime < 0) {
-                        clearInterval(countdownInterval);
-                        executeLaunch();
-                    }
-                }, 1000);
-                
-                sendToServer({type: 'command', command: 'LAUNCH', countdown: 10});
-                addTimelineEntry('LAUNCH INITIATED - T-10 seconds');
-            }
-        }
-
-        function executeLaunch() {
-            missionState = 'FLIGHT';
-            document.getElementById('missionStatus').textContent = 'FLIGHT';
-            document.getElementById('countdown').textContent = 'T+00:00';
-            
-            sendToServer({type: 'command', command: 'IGNITE'});
-            addTimelineEntry('ROCKET LAUNCHED - Flight in progress');
-            
-            // Start flight timer
-            let flightTime = 0;
-            setInterval(() => {
-                flightTime++;
-                document.getElementById('countdown').textContent = `T+${Math.floor(flightTime/60).toString().padStart(2, '0')}:${(flightTime%60).toString().padStart(2, '0')}`;
-            }, 1000);
-        }
-
-        function abortMission() {
-            if (confirm('ABORT MISSION? This will terminate all systems!')) {
-                clearInterval(countdownInterval);
-                missionState = 'ABORTED';
-                
-                document.getElementById('armBtn').disabled = false;
-                document.getElementById('launchBtn').disabled = true;
-                document.getElementById('abortBtn').disabled = true;
-                document.getElementById('missionStatus').textContent = 'ABORTED';
-                document.getElementById('missionStatus').classList.remove('armed', 'launch');
-                document.getElementById('countdown').classList.remove('launch');
-                document.getElementById('countdown').textContent = 'T-00:00';
-                
-                isArmed = false;
-                document.getElementById('armDot').classList.remove('connected');
-                document.getElementById('armStatus').textContent = 'Disarmed';
-                
-                sendToServer({type: 'command', command: 'ABORT'});
-                addTimelineEntry('MISSION ABORTED - All systems terminated');
-            }
-        }
-
-        function sendCommand(command, value) {
-            if (!isConnected) {
-                alert('Please connect to rocket first!');
-                return;
-            }
-            
-            sendToServer({
-                type: 'command',
-                command: command,
-                value: value
-            });
-            
-            addTimelineEntry(`Command sent: ${command} ${value !== undefined ? value : ''}`);
-        }
-
-        function startLogging() {
-            const filename = prompt('Enter filename for data log:', 'flight_data.csv');
-            if (filename) {
-                fetch('/api/logging/start', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({filename: filename})
-                });
-                addTimelineEntry(`Data logging started: ${filename}`);
-            }
-        }
-
-        function stopLogging() {
-            fetch('/api/logging/stop', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'}
-            });
-            addTimelineEntry('Data logging stopped');
-        }
-
-        function emergencyStop() {
-            if (confirm('EMERGENCY STOP? This will immediately terminate all systems!')) {
-                sendToServer({type: 'command', command: 'EMERGENCY_STOP'});
-                abortMission();
-                addTimelineEntry('EMERGENCY STOP ACTIVATED');
-            }
-        }
-
-        function updateMissionProfile() {
-            missionProfile.targetAltitude = parseInt(document.getElementById('targetAlt').value);
-            missionProfile.launchAngle = parseInt(document.getElementById('launchAngle').value);
-            missionProfile.burnTime = parseInt(document.getElementById('burnTime').value);
-            
-            sendToServer({
-                type: 'mission_profile',
-                profile: missionProfile
-            });
-            
-            addTimelineEntry(`Mission profile updated: ${missionProfile.targetAltitude}m, ${missionProfile.launchAngle}°, ${missionProfile.burnTime}s`);
-        }
-
-        // Toggle connection
-        function toggleConnection() {
-            if (!isConnected) {
-                const port = document.getElementById('portSelect').value;
-                const baud = document.getElementById('baudSelect').value;
-                
-                // Send connection request to server
-                sendToServer({
-                    type: 'connect',
-                    port: port,
-                    baud: parseInt(baud)
-                });
-                
-                document.getElementById('connectBtn').textContent = 'DISCONNECT';
-                document.getElementById('connectBtn').classList.add('connected');
-                isConnected = true;
-                document.getElementById('armBtn').disabled = false;
-                addTimelineEntry(`Connected to ${port} at ${baud} baud`);
-            } else {
-                // Send disconnect request to server
-                sendToServer({type: 'disconnect'});
-                
-                document.getElementById('connectBtn').textContent = 'CONNECT';
-                document.getElementById('connectBtn').classList.remove('connected');
-                isConnected = false;
-                document.getElementById('armBtn').disabled = true;
-                document.getElementById('launchBtn').disabled = true;
-                document.getElementById('abortBtn').disabled = true;
-                addTimelineEntry('Disconnected from rocket');
-            }
-        }
-
-        // Generate report
-        function generateReport() {
-            if (telemetryData.length === 0) {
-                alert('No telemetry data available for report generation');
-                return;
-            }
-            
-            // Send request to server
-            fetch('/api/report/generate', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'}
-            }).then(response => response.json())
-              .then(report => {
-                  const blob = new Blob([JSON.stringify(report, null, 2)], {type: 'application/json'});
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `flight_report_${new Date().toISOString().split('T')[0]}.json`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-              });
-        }
-
-        // Start simulation
-        function startSimulation() {
-            if (simulationInterval) {
-                // Stop local simulation
-                clearInterval(simulationInterval);
-                simulationInterval = null;
-                document.getElementById('simulateBtn').textContent = 'Start Simulation';
-                addTimelineEntry('Local simulation stopped');
-                return;
-            }
-            
-            // Send request to server to start simulation
-            fetch('/api/simulation/start', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'}
-            }).then(response => response.json())
-              .then(data => {
-                  if (data.status === 'started') {
-                      addTimelineEntry('Server simulation started');
-                  } else if (data.status === 'already_running') {
-                      addTimelineEntry('Server simulation already running');
-                  }
-              });
-        }
-
-        // Initialize application
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeCharts();
-            connectWebSocket();
-            addTimelineEntry('Ground Control Station initialized');
-            
-            // Update time every second
-            setInterval(() => {
-                document.getElementById('currentTime').textContent = new Date().toLocaleTimeString();
-            }, 1000);
-            
-            // Send ping to server every 30 seconds
-            setInterval(() => {
-                if (serverConnected) {
-                    sendToServer({type: 'ping'});
-                }
-            }, 30000);
-        });
-    </script>
+    <script type="module" src="/static/js/app.js"></script>
 </body>
 </html>
