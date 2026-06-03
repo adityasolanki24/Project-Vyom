@@ -1,0 +1,41 @@
+{
+    "rocket_parameters": {
+        "mass_initial": 0.5,
+        "mass_fuel": 0.1,
+        "mass_dry": 0.4,
+        "thrust": 100,
+        "burn_time": 2.0,
+        "drag_coefficient": 0.01,
+        "cross_sectional_area": 0.01,
+        "exhaust_velocity": 300
+    },
+    "telemetry_settings": {
+        "default_port": "COM3",
+        "default_baud": 115200,
+        "update_interval_ms": 100,
+        "max_data_points": 10000,
+        "log_format": "csv"
+    },
+    "display_settings": {
+        "plot_refresh_rate": 10,
+        "status_refresh_rate": 100,
+        "timeline_max_entries": 100,
+        "altitude_max": 1000,
+        "velocity_max": 200,
+        "time_window": 60
+    },
+    "safety_limits": {
+        "max_altitude": 10000,
+        "max_velocity": 500,
+        "max_acceleration": 50,
+        "min_battery_voltage": 3.0,
+        "max_temperature": 80,
+        "max_pressure": 120000
+    },
+    "mission_profile": {
+        "launch_detection_threshold": 5.0,
+        "apogee_detection_threshold": 1.0,
+        "landing_detection_threshold": 2.0,
+        "recovery_deployment_altitude": 100
+    }
+}
